@@ -20,6 +20,15 @@ def test_arg_parser_data_flag() -> None:
     assert args.data == "/tmp/foo.parquet"
 
 
+def test_version_flag_prints_and_exits(capsys: pytest.CaptureFixture[str]) -> None:
+    from mcp_aws_finops import __version__
+
+    with pytest.raises(SystemExit) as exc_info:
+        build_arg_parser().parse_args(["--version"])
+    assert exc_info.value.code == 0
+    assert __version__ in capsys.readouterr().out
+
+
 def test_arg_parser_mutually_exclusive() -> None:
     with pytest.raises(SystemExit):
         build_arg_parser().parse_args(["--demo", "--data", "/tmp/foo.parquet"])

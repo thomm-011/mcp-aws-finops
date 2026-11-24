@@ -6,6 +6,7 @@ import argparse
 import sys
 from importlib import resources
 
+from mcp_aws_finops import __version__
 from mcp_aws_finops.server import create_server
 from mcp_aws_finops.sources.base import CostSource
 from mcp_aws_finops.sources.focus_file import FocusFileSource
@@ -23,6 +24,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Read-only MCP server that answers AWS cost/FinOps questions for AI agents, "
             "backed by FOCUS-format billing data or live AWS Cost Explorer."
         ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
