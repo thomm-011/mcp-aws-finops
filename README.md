@@ -11,6 +11,8 @@ sample data. An AWS Cost Explorer backend is planned (see
 [Roadmap](#roadmap)) but **not implemented yet** — don't point this at
 production expecting live AWS data today.
 
+![Demo: an agent (Hermes) answering FinOps questions via this MCP server](docs/demo.gif)
+
 ## Features
 
 | Tool | What it does |
@@ -97,6 +99,14 @@ Add to `.cursor/mcp.json`:
 }
 ```
 
+## Use with your agent
+
+Ready-to-copy configs for Claude Desktop, Cursor, Claude Code, and Hermes
+live in [`examples/`](examples/) — including the zero-install
+`uvx --from git+https://github.com/thomm-011/mcp-aws-finops` command (no
+PyPI release yet) and a local `uv --directory` variant. See
+[`docs/demo.tape`](docs/demo.tape) for the VHS source behind the GIF above.
+
 ## Architecture
 
 ```mermaid
@@ -171,7 +181,7 @@ data (`x_Attached`, `x_AvgCpuUtilization`, ...) — documented in
 
 - **M1 — Skeleton** ✅ repo, `uv`, `src/` layout, FastMCP server with tools, CI (ruff/mypy/pytest), README.
 - **M2 — Offline mode** ✅ `FocusFileSource` over DuckDB, all 7 tools + resource + prompt on sample data, ≥80% test coverage.
-- **M3 — Agent integration** — ready-to-paste configs for Claude Desktop/Cursor/Hermes (above), demo recording of an agent answering real questions against the sample data.
+- **M3 — Agent integration** ✅ ready-to-paste configs for Claude Desktop/Cursor/Claude Code/Hermes (see [`examples/`](examples/)), demo GIF of an agent (Hermes) answering real questions against the sample data.
 - **M4 — AWS backend** (needs an AWS account, not yet started) — `CostExplorerSource` implementation, tested with `moto`/botocore stubs, read-only IAM policy JSON, Terraform module for the role.
 - **M5 — Polish** — Docker image, PyPI release (`uvx mcp-aws-finops`), badges, portfolio entry.
 

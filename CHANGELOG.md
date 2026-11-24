@@ -5,6 +5,21 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Added — M3: agent integration
+- `examples/` directory with ready-to-copy MCP client configs: Claude
+  Desktop (`claude_desktop_config.json`), Cursor (`.cursor/mcp.json`),
+  Claude Code (`claude mcp add` command), and Hermes
+  (`hermes-config.yaml` snippet) — all using the zero-install
+  `uvx --from git+https://github.com/thomm-011/mcp-aws-finops` command
+  (PyPI release pending) plus a local `uv --directory` variant.
+- README: demo GIF near the top, new "Use with your agent" section
+  linking `examples/`, M3 marked done in the roadmap.
+- `docs/demo.gif` + `docs/demo.tape` (VHS source): a real Hermes agent
+  session (separate `finops-demo` profile, `claude-haiku-4-5`, MCP
+  toolset restricted to `aws-finops`) answering "which service drove
+  the cost spike on 2025-08-25?" and a team-tag cost breakdown, verified
+  to call the MCP tools and return correct figures.
+
 ### Added — M2: offline mode
 - `FocusFileSource`: DuckDB-backed `CostSource` reading FOCUS CSV/Parquet
   (file or directory), with cost summary, daily series, per-day grouping,

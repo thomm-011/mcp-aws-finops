@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aws-finops": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/thomm-011/mcp-aws-finops", "mcp-aws-finops", "--demo"]
+    }
+  }
+}

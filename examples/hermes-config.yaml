@@ -1,0 +1,18 @@
+# Snippet for ~/.hermes/config.yaml (or a profile's config.yaml, e.g.
+# ~/.hermes/profiles/<name>/config.yaml) — merge the mcp_servers key in.
+#
+# Easiest: let Hermes write this for you (also registers tools interactively):
+#   hermes mcp add aws-finops --command uv \
+#     --args run --directory /path/to/mcp-aws-finops mcp-aws-finops --demo
+#
+# Equivalent hand-written config:
+mcp_servers:
+  aws-finops:
+    command: uv
+    args:
+      - run
+      - --directory
+      - /path/to/mcp-aws-finops
+      - mcp-aws-finops
+      - --demo
+    enabled: true
