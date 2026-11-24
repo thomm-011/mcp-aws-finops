@@ -17,3 +17,10 @@ wheels/
 htmlcov/
 *.log
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+
