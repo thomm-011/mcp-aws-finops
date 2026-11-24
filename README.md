@@ -7,9 +7,10 @@ since last month?"*, *"which resources are idle?"*.
 
 Built on the FinOps Foundation's open **FOCUS** billing format, so it works
 fully offline, with no AWS account or credentials, using bundled synthetic
-sample data. An AWS Cost Explorer backend is planned (see
-[Roadmap](#roadmap)) but **not implemented yet** — don't point this at
-production expecting live AWS data today.
+sample data. An AWS Cost Explorer backend (`--source aws`) is also
+available (see [AWS mode](#aws-mode)) — it has been tested against
+mocked AWS APIs (botocore Stubber + moto) but **not yet validated against
+a live AWS account**.
 
 ![Demo: an agent (Hermes) answering FinOps questions via this MCP server](docs/demo.gif)
 
@@ -107,6 +108,51 @@ live in [`examples/`](examples/) — including the zero-install
 PyPI release yet) and a local `uv --directory` variant. See
 [`docs/demo.tape`](docs/demo.tape) for the VHS source behind the GIF above.
 
+## AWS mode
+
+`--source aws` swaps the bundled sample data for live AWS Cost Explorer /
+EC2 / CloudWatch data, via `CostExplorerSource` (same `CostSource`
+interface as `FocusFileSource`, so every tool behaves identically):
+
+```bash
+uv run mcp-aws-finops --source aws --region us-east-1 --profile my-profile
+```
+
+Flags: `--profile` (named AWS CLI profile; default credential chain if
+omitted), `--region` (for `ec2`/`cloudwatch` calls — Cost Explorer itself
+is a single global endpoint), `--metric` (`UnblendedCost` default, or
+`AmortizedCost` to spread RI/Savings-Plan costs over time), and
+`--cache-ttl-seconds` (default 300; `0` disables caching).
+
+Credentials come from the normal boto3 chain: `--profile`, environment
+variables (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`),
+or an attached IAM role (EC2 instance profile, ECS task role, EKS IRSA).
+
+**IAM permissions:** grant the identity running the server the read-only
+policy in [`iam/policy.json`](iam/policy.json) — `ce:GetCostAndUsage`,
+`ce:GetCostForecast`, `ce:GetAnomalies`, `ec2:Describe{Volumes,Addresses,
+Snapshots,Instances}`, `cloudwatch:GetMetricData`/`GetMetricStatistics`.
+No write/mutate action is ever granted or called; see
+[`iam/README.md`](iam/README.md) for the action-by-tool mapping and
+[`terraform/`](terraform/) for a module that provisions an assumable role
+with this exact policy (including an OIDC/IRSA trust variant). On
+`AccessDenied`/missing-credentials, the server raises a `CostExplorerError`
+pointing back at this policy file.
+
+**Cost of Cost Explorer calls:** `ce:GetCostAndUsage`/`GetCostForecast`
+cost ~US$0.01 per request. `CostExplorerSource` caches responses in-memory
+for `--cache-ttl-seconds` (default 300s) to avoid repeat charges for the
+same query window within a short span; set it to `0` to disable caching,
+or raise it for a long-running server with infrequent, repeated questions.
+`ec2:Describe*` and `cloudwatch:GetMetricData` calls are free.
+
+**Status:** `CostExplorerSource` is implemented and covered by unit and
+in-process MCP integration tests against `botocore.stub.Stubber` (Cost
+Explorer — moto's CE support is too partial to rely on) and `moto.mock_aws`
+(EC2/CloudWatch, which moto supports well). It has **not yet been run
+against a live AWS account** — treat it as implemented-and-mock-tested,
+not production-validated, until that happens.
+
 ## Architecture
 
 ```mermaid
@@ -115,18 +161,19 @@ flowchart LR
     server --> tools["Tools: get_cost_summary, compare_periods,\ntop_cost_drivers, cost_by_tag,\nfind_idle_resources, forecast_month_end,\nexplain_anomaly"]
     tools --> iface["CostSource interface"]
     iface --> focus["FocusFileSource\n(DuckDB over FOCUS CSV/Parquet)"]
-    iface -.->|M4, not implemented| ce["CostExplorerSource\n(boto3: Cost Explorer, CloudWatch)"]
+    iface --> ce["CostExplorerSource\n(boto3: Cost Explorer, EC2, CloudWatch)"]
     focus --> data[("sample_focus.parquet\nor your FOCUS export")]
-    ce -.-> aws[("AWS account\n(read-only IAM role)")]
+    ce --> aws[("AWS account\n(read-only IAM role, see iam/ + terraform/)")]
 ```
 
 A single `CostSource` abstract interface (`src/mcp_aws_finops/sources/base.py`)
-decouples the MCP tool layer from where the data comes from. Today only
-`FocusFileSource` is implemented: it loads a local FOCUS CSV/Parquet file
-(or directory of files) into an in-memory DuckDB view and runs SQL
-aggregations for every tool. `CostExplorerSource` is declared with the same
-interface, to be implemented in M4, so swapping backends needs no change to
-the tools themselves.
+decouples the MCP tool layer from where the data comes from.
+`FocusFileSource` loads a local FOCUS CSV/Parquet file (or directory of
+files) into an in-memory DuckDB view and runs SQL aggregations for every
+tool. `CostExplorerSource` implements the same interface against live
+`ce`/`ec2`/`cloudwatch` AWS APIs (`--source aws`) — tested with mocks, see
+[AWS mode](#aws-mode) for its current validation status. Both backends
+feed the exact same 7 tools unmodified.
 
 ## Sample data
 
@@ -165,24 +212,27 @@ data (`x_Attached`, `x_AvgCpuUtilization`, ...) — documented in
 ## Security
 
 - Every tool is **read-only**: it only ever runs `SELECT` queries against a
-  local file (or, once M4 lands, read-only AWS API calls). No tool deletes,
-  creates, or modifies anything — enforced by a server-level test that
-  rejects any registered tool whose name contains a mutating verb.
-- No AWS credentials are required or used in offline mode.
-- Once the Cost Explorer backend (M4) exists, it will require only a
-  read-only IAM role (`ce:Get*`, `ce:Describe*`, `cloudwatch:GetMetricData`,
-  `compute-optimizer:Get*`) — no `*:Create*`, `*:Delete*`, or `*:Put*`
-  permissions. The exact policy JSON and a Terraform module to provision
-  the role will ship with M4.
-- Cost Explorer API calls cost ~US$0.01 each; the M4 implementation will
-  cache results to avoid surprise bills.
+  local file, or read-only AWS API calls (`ce:Get*`, `ec2:Describe*`,
+  `cloudwatch:GetMetric*`). No tool deletes, creates, or modifies
+  anything — enforced by a server-level test that rejects any registered
+  tool whose name contains a mutating verb, plus a unit test
+  (`tests/test_iam_policy.py`) that asserts `iam/policy.json` grants only
+  actions the code actually calls and never a write action.
+- No AWS credentials are required or used in offline mode (`--demo`/`--data`).
+- AWS mode (`--source aws`) requires only the read-only IAM policy in
+  [`iam/policy.json`](iam/policy.json) — no `*:Create*`, `*:Delete*`, or
+  `*:Put*` permissions. [`terraform/`](terraform/) provisions an assumable
+  role with that exact policy, including an OIDC/IRSA trust option.
+- Cost Explorer API calls cost ~US$0.01 each; `CostExplorerSource` caches
+  results in-memory (configurable TTL, default 300s) to avoid repeat
+  charges for the same query window.
 
 ## Roadmap
 
 - **M1 — Skeleton** ✅ repo, `uv`, `src/` layout, FastMCP server with tools, CI (ruff/mypy/pytest), README.
 - **M2 — Offline mode** ✅ `FocusFileSource` over DuckDB, all 7 tools + resource + prompt on sample data, ≥80% test coverage.
 - **M3 — Agent integration** ✅ ready-to-paste configs for Claude Desktop/Cursor/Claude Code/Hermes (see [`examples/`](examples/)), demo GIF of an agent (Hermes) answering real questions against the sample data.
-- **M4 — AWS backend** (needs an AWS account, not yet started) — `CostExplorerSource` implementation, tested with `moto`/botocore stubs, read-only IAM policy JSON, Terraform module for the role.
+- **M4 — AWS backend** ✅ `CostExplorerSource` (Cost Explorer + EC2/CloudWatch) implemented and tested with `botocore.stub.Stubber`/`moto` (95%+ coverage incl. an in-process MCP tool call against a stubbed AWS source); `iam/policy.json` least-privilege policy + `terraform/` role module (`terraform fmt`/`validate`/`test` all green against a mocked provider). **Not yet validated against a live AWS account.**
 - **M5 — Polish** — Docker image, PyPI release (`uvx mcp-aws-finops`), badges, portfolio entry.
 
 ## Development

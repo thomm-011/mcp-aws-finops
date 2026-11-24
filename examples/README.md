@@ -10,6 +10,10 @@ synthetic demo data (`--demo`) — no AWS account or credentials needed.
 | Claude Code | [`claude-code.md`](./claude-code.md) |
 | Hermes | [`hermes-config.yaml`](./hermes-config.yaml) |
 
+For live AWS data instead of the sample dataset, see
+[`aws-mode.md`](./aws-mode.md) (`--source aws`; implemented and
+mock-tested, not yet validated against a live account).
+
 ## Two ways to run the server
 
 **Zero-install (PyPI release pending), fetches straight from GitHub:**
