@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "aws-finops": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/thomm-011/mcp-aws-finops", "--demo"]
+    }
+  }
+}

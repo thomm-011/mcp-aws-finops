@@ -1,5 +1,11 @@
 # mcp-aws-finops
 
+[![CI](https://github.com/thomm-011/mcp-aws-finops/actions/workflows/ci.yml/badge.svg)](https://github.com/thomm-011/mcp-aws-finops/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/mcp-aws-finops.svg)](https://pypi.org/project/mcp-aws-finops/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mcp-aws-finops.svg)](https://pypi.org/project/mcp-aws-finops/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GHCR](https://img.shields.io/badge/ghcr.io-mcp--aws--finops-blue?logo=docker)](https://github.com/thomm-011/mcp-aws-finops/pkgs/container/mcp-aws-finops)
+
 A read-only [MCP](https://modelcontextprotocol.io) server that lets an AI
 agent (Claude, Cursor, Hermes…) answer AWS cost / FinOps questions directly
 in plain language: *"how much did EKS cost this month?"*, *"what went up
@@ -36,13 +42,28 @@ clear, descriptive errors instead of silently doing the wrong thing.
 ## Quickstart
 
 ```bash
-# PyPI release is pending — once published:
+# Once published to PyPI:
 uvx mcp-aws-finops --demo
 
-# Until then, run from a checkout:
+# or pip:
+pip install mcp-aws-finops
+mcp-aws-finops --demo
+
+# From a checkout (works today, no PyPI release needed):
 git clone https://github.com/thomm-011/mcp-aws-finops
 cd mcp-aws-finops
 uv run mcp-aws-finops --demo
+```
+
+### Docker
+
+```bash
+docker run -i --rm ghcr.io/thomm-011/mcp-aws-finops --demo
+
+# AWS mode: mount read-only AWS credentials and pick a profile
+docker run -i --rm \
+  -v ~/.aws:/home/app/.aws:ro -e AWS_PROFILE=my-profile \
+  ghcr.io/thomm-011/mcp-aws-finops --source aws --region us-east-1
 ```
 
 `--demo` uses the bundled synthetic sample dataset (~3 months of AWS
@@ -233,7 +254,7 @@ data (`x_Attached`, `x_AvgCpuUtilization`, ...) — documented in
 - **M2 — Offline mode** ✅ `FocusFileSource` over DuckDB, all 7 tools + resource + prompt on sample data, ≥80% test coverage.
 - **M3 — Agent integration** ✅ ready-to-paste configs for Claude Desktop/Cursor/Claude Code/Hermes (see [`examples/`](examples/)), demo GIF of an agent (Hermes) answering real questions against the sample data.
 - **M4 — AWS backend** ✅ `CostExplorerSource` (Cost Explorer + EC2/CloudWatch) implemented and tested with `botocore.stub.Stubber`/`moto` (95%+ coverage incl. an in-process MCP tool call against a stubbed AWS source); `iam/policy.json` least-privilege policy + `terraform/` role module (`terraform fmt`/`validate`/`test` all green against a mocked provider). **Not yet validated against a live AWS account.**
-- **M5 — Polish** — Docker image, PyPI release (`uvx mcp-aws-finops`), badges, portfolio entry.
+- **M5 — Polish** ✅ packaging metadata + `py.typed`, multi-stage Dockerfile (non-root, published to GHCR), `release.yml` (PyPI Trusted Publishing + multi-arch Docker + GitHub Release on `v*` tags), badges, README/examples updated. See [`RELEASING.md`](RELEASING.md) for the one-time PyPI setup and how to cut a release.
 
 ## Development
 

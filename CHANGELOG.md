@@ -3,6 +3,49 @@
 All notable changes to this project are documented here.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-11-23
+
+### Added — M5: packaging + release automation
+- `pyproject.toml` metadata polish: dynamic version (single source of
+  truth in `src/mcp_aws_finops/__init__.py` via `tool.hatch.version`),
+  full classifiers (incl. Python 3.12/3.13, `Typing :: Typed`), extra
+  keywords, `project.urls.Issues`/`Changelog`, `py.typed` marker shipped
+  in the wheel alongside the sample parquet.
+- `mcp-aws-finops --version` CLI flag, backed by `__version__`.
+- Verified `uv build` output (sdist + wheel) with `uvx twine check
+  dist/*` (PASSED) and an end-to-end smoke test installing the built
+  wheel into a fresh venv and running `scripts/smoke_test_stdio.py`
+  against it (confirms `sample_focus.parquet` is actually packaged and
+  all 7 tools/resource/prompt work from the installed wheel, not just
+  the source tree).
+- Multi-stage `Dockerfile` (`ghcr.io/astral-sh/uv:python3.12-bookworm-slim`
+  builder → `python:3.12-slim-bookworm` runtime), non-root `app` user,
+  no dev dependencies in the final image, `ENTRYPOINT
+  ["mcp-aws-finops"]` / default `CMD ["--demo"]`, OCI image labels.
+  `.dockerignore`. Linted clean with `hadolint` (one informational
+  DL3066 notice on the non-numeric `app` user, not a failure).
+- `.github/workflows/release.yml`: triggered on `v*` tags — build
+  sdist/wheel with `uv` and verify the tag matches the package version;
+  publish to PyPI via `pypa/gh-action-pypi-publish` using Trusted
+  Publishing (`environment: pypi`, `permissions.id-token: write`, no
+  stored token); multi-arch (`linux/amd64`/`linux/arm64`) Docker build
+  + push to `ghcr.io/thomm-011/mcp-aws-finops` (version + `latest` tags,
+  provenance + SBOM, `GITHUB_TOKEN`); GitHub Release with notes sliced
+  from this changelog and the dist files attached. The PyPI job is
+  `continue-on-error: true` so Docker + the GitHub Release still
+  succeed before the PyPI Trusted Publisher is registered (see
+  `RELEASING.md`).
+- `.github/workflows/ci.yml`: new `docker` job building the image (no
+  push) on every PR/push to `main`.
+- Both workflow files validated with `actionlint` (clean).
+- `RELEASING.md`: one-time PyPI Trusted Publisher setup steps and the
+  release-cutting checklist.
+- README: badges (CI, PyPI, Python versions, license, GHCR — the PyPI
+  badge reads "not found" until the first publish), Docker
+  install/run instructions (incl. AWS-mode credential mount), M5 marked
+  done in the roadmap. `examples/`: added a Docker variant of the
+  Claude Desktop config.
+
 ## [Unreleased]
 
 ### Added — M4: AWS backend
