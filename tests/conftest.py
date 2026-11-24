@@ -11,6 +11,22 @@ from mcp_aws_finops.server import create_server
 from mcp_aws_finops.sources.focus_file import FocusFileSource
 
 
+@pytest.fixture(autouse=True)
+def _fake_aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never let a test accidentally make a real AWS call.
+
+    Fake, obviously-invalid credentials in the environment mean boto3 never
+    falls back to real instance-profile/SSO credentials, and Stubber/moto
+    intercept every client call before it reaches the network anyway.
+    """
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+
+
 @pytest.fixture
 def sample_data_path() -> str:
     return str(resources.files("mcp_aws_finops.data").joinpath("sample_focus.parquet"))

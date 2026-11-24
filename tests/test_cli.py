@@ -34,4 +34,31 @@ def test_main_demo_builds_and_runs_server() -> None:
 
 def test_main_missing_data_path_exits(tmp_path: object) -> None:
     with pytest.raises(SystemExit):
-        main(["--data", f"{tmp_path}/nope.parquet"])
+        main([f"--data={tmp_path}/nope.parquet"])
+
+
+def test_arg_parser_source_aws() -> None:
+    args = build_arg_parser().parse_args(
+        ["--source", "aws", "--profile", "prod", "--region", "eu-west-1"]
+    )
+    assert args.source == "aws"
+    assert args.profile == "prod"
+    assert args.region == "eu-west-1"
+
+
+def test_arg_parser_source_mutually_exclusive_with_demo() -> None:
+    with pytest.raises(SystemExit):
+        build_arg_parser().parse_args(["--demo", "--source", "aws"])
+
+
+def test_main_source_aws_builds_cost_explorer_source() -> None:
+    with (
+        patch("mcp_aws_finops.cli.create_server") as create_server_mock,
+        patch("mcp_aws_finops.sources.cost_explorer.CostExplorerSource") as ce_source_mock,
+    ):
+        main(["--source", "aws", "--region", "eu-west-1"])
+    ce_source_mock.assert_called_once()
+    _, kwargs = ce_source_mock.call_args
+    assert kwargs["region"] == "eu-west-1"
+    create_server_mock.assert_called_once_with(ce_source_mock.return_value)
+    create_server_mock.return_value.run.assert_called_once_with(transport="stdio")
