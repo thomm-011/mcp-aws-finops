@@ -50,6 +50,7 @@ dev = [
   "pytest-asyncio>=0.24",
   "pre-commit>=4.0",
   "boto3-stubs>=1.35",
+  "moto[cloudwatch,ec2]>=5.0",
 ]
 
 [tool.ruff]
@@ -80,7 +81,6 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 source = ["src/mcp_aws_finops"]
-omit = ["src/mcp_aws_finops/sources/cost_explorer.py"]
 
 [tool.coverage.report]
 fail_under = 80
